@@ -41,7 +41,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 
   --font-roboto: var(--font-roboto);
-  --font-dela-gothic-one: var(--font-dela-gothic-one);
+  --font-unbounded: var(--font-unbounded);
 }
 
 :root {
@@ -129,7 +129,7 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-dela-gothic-one), sans-serif;
+    font-family: var(--font-unbounded), sans-serif;
     font-weight: 400;
   }
 }
