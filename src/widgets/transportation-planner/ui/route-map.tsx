@@ -3,10 +3,11 @@
 import type { PlanResult } from '@entities'
 import { depotPoint, gridLetters, gridSize, parseGridCode } from '@entities'
 import { useId, useMemo } from 'react'
+import type { RequestLegendEntry } from './types'
 
 interface RouteMapProps {
   plan: PlanResult
-  colorMap: Map<string, string>
+  colorMap: Map<string, RequestLegendEntry>
 }
 
 const CELL_SIZE = 72
@@ -70,7 +71,7 @@ export function RouteMap({ plan, colorMap }: RouteMapProps) {
           shipper: trip.shipperCode,
           receiver: trip.receiverCode,
           count: 1,
-          color: colorMap.get(trip.requestId) ?? '#1f77b4',
+          color: colorMap.get(trip.requestId)?.color ?? '#1f77b4',
         })
       } else {
         const existing = grouped.get(trip.requestId)

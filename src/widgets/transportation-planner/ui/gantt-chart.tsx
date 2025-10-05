@@ -6,10 +6,11 @@ import {
   type TripPlan,
   type VehicleSchedule,
 } from '@entities'
+import type { RequestLegendEntry } from './types'
 
 interface GanttChartProps {
   vehicles: VehicleSchedule[]
-  colorMap: Map<string, string>
+  colorMap: Map<string, RequestLegendEntry>
   horizon: number
 }
 
@@ -246,9 +247,13 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
   const usedRequestIds = new Set(
     vehicles.flatMap((vehicle) => vehicle.trips.map((trip) => trip.requestId)),
   )
-  const legendEntries = Array.from(colorMap.entries()).filter(([requestId]) =>
-    usedRequestIds.has(requestId),
-  )
+  const legendEntries = Array.from(colorMap.entries())
+    .filter(([requestId]) => usedRequestIds.has(requestId))
+    .map(([requestId, entry]) => ({
+      requestId,
+      color: entry.color,
+      label: entry.label,
+    }))
 
   const totalBusyTime = vehicleTracks.reduce(
     (total, track) => total + track.timeline.busyTime,
@@ -387,14 +392,14 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
       {legendEntries.length > 0 && (
         <div className='flex flex-wrap gap-3 rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground'>
           <span className='font-semibold text-foreground'>Легенда заявок:</span>
-          {legendEntries.map(([requestId, color]) => (
-            <span key={requestId} className='flex items-center gap-2'>
+          {legendEntries.map((entry) => (
+            <span key={entry.requestId} className='flex items-center gap-2'>
               <span
                 className='h-3 w-3 rounded-sm'
-                style={{ backgroundColor: color }}
+                style={{ backgroundColor: entry.color }}
                 aria-hidden
               />
-              {requestId}
+              {entry.label}
             </span>
           ))}
         </div>
@@ -418,12 +423,13 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
 
 interface TripBlockProps {
   trip: TripPlan
-  colorMap: Map<string, string>
+  colorMap: Map<string, RequestLegendEntry>
   axisEnd: number
 }
 
 function TripBlock({ trip, colorMap, axisEnd }: TripBlockProps) {
-  const baseColor = colorMap.get(trip.requestId) ?? '#2563eb'
+  const legendEntry = colorMap.get(trip.requestId)
+  const baseColor = legendEntry?.color ?? '#2563eb'
   const safeAxis = axisEnd || 1
   const offset = (trip.schedule.startTime / safeAxis) * 100
   const duration = Math.max(trip.schedule.endTime - trip.schedule.startTime, 0)

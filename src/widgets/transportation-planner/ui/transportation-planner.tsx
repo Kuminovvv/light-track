@@ -11,6 +11,7 @@ import { Button } from '@shared/ui/button'
 import { useMemo, useState } from 'react'
 import { GanttChart } from './gantt-chart'
 import { RouteMap } from './route-map'
+import type { RequestLegendEntry } from './types'
 
 type EditableRequest = RequestInput
 
@@ -51,13 +52,16 @@ export function TransportationPlanner() {
   const [errors, setErrors] = useState<string[]>([])
 
   const colorMap = useMemo(() => {
-    const map = new Map<string, string>()
+    const map = new Map<string, RequestLegendEntry>()
     if (!plan) {
       return map
     }
     plan.trips.forEach((trip, index) => {
       if (!map.has(trip.requestId)) {
-        map.set(trip.requestId, colorPalette[index % colorPalette.length])
+        map.set(trip.requestId, {
+          color: colorPalette[index % colorPalette.length],
+          label: trip.requestLabel,
+        })
       }
     })
     return map
