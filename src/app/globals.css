@@ -40,8 +40,8 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --font-roboto-flex: var(--font-roboto-flex);
-  --font-unbounded: var(--font-unbounded);
+  --font-roboto: var(--font-roboto);
+  --font-dela-gothic-one: var(--font-dela-gothic-one);
 }
 
 :root {
@@ -120,5 +120,16 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-roboto), sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-dela-gothic-one), sans-serif;
+    font-weight: 400;
   }
 }

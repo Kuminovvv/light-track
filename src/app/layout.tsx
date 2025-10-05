@@ -1,4 +1,4 @@
-import { robotoFlex, unbounded } from '@shared/lib'
+import { delaGothicOne, roboto } from '@shared/lib'
 import { appMetadata } from '@shared/metadata'
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
@@ -14,7 +14,7 @@ export default function RootLayout({
   return (
     <html lang='ru' data-lt-installed='true'>
       <body
-        className={`${robotoFlex.className} ${unbounded.variable} antialiased`}
+        className={`${roboto.className} ${delaGothicOne.variable} antialiased`}
       >
         {children}
       </body>

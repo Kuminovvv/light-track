@@ -1,1 +1,1 @@
-export { robotoFlex, unbounded } from './fonts'
+export { delaGothicOne, roboto } from './fonts'
