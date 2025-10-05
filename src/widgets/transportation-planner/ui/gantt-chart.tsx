@@ -44,6 +44,7 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
 
   const axis = buildTimeAxis(maxTime)
   const gridSize = `${(axis.majorStep / axis.axisEnd) * 100}%`
+  const chartHeight = Math.max(axis.axisEnd * 48, 320)
 
   const usedRequestIds = new Set(
     vehicles.flatMap((vehicle) => vehicle.trips.map((trip) => trip.requestId)),
@@ -70,58 +71,64 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
       </div>
       <div className='overflow-x-auto rounded-xl border bg-card p-4 shadow-sm'>
         <div className='min-w-[720px] space-y-5'>
-          <div className='grid grid-cols-[140px_1fr] items-end gap-4 text-xs text-muted-foreground'>
-            <div className='text-right font-medium uppercase tracking-wide'>
-              Время, ч
+          <div className='flex items-end gap-6 text-xs text-muted-foreground'>
+            <div className='flex w-24 flex-col items-end gap-2 text-right font-medium uppercase tracking-wide'>
+              <span className='text-sm font-semibold text-muted-foreground'>
+                Время, ч
+              </span>
+              <div
+                className='relative w-full flex-1'
+                style={{ height: chartHeight }}
+              >
+                <div className='absolute left-[calc(50%-1px)] top-0 h-full w-px bg-border' />
+                {axis.ticks.map((tick) => {
+                  const position = (tick / axis.axisEnd) * 100
+                  return (
+                    <div
+                      key={tick}
+                      className='absolute -translate-y-1/2 text-[10px] font-medium text-muted-foreground'
+                      style={{ top: `${position}%`, right: '-0.75rem' }}
+                    >
+                      <div className='absolute left-[0.75rem] top-1/2 h-px w-3 -translate-y-1/2 bg-border' />
+                      <span className='relative -translate-y-1/2'>
+                        {tick.toFixed(Number.isInteger(tick) ? 0 : 1)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <div className='relative h-10'>
-              <div className='absolute bottom-0 left-0 right-0 border-b border-border' />
-              {axis.ticks.map((tick) => {
-                const position = (tick / axis.axisEnd) * 100
-                return (
-                  <div
-                    key={tick}
-                    className='absolute flex -translate-x-1/2 flex-col items-center text-[10px] font-medium text-muted-foreground'
-                    style={{ left: `${position}%` }}
-                  >
-                    <div className='h-3 border-l border-border' />
-                    <span className='mt-1'>
-                      {tick.toFixed(Number.isInteger(tick) ? 0 : 1)}
+            <div className='flex flex-1 gap-6'>
+              {vehicles.map((vehicle) => (
+                <div
+                  key={vehicle.vehicleId}
+                  className='flex w-[220px] flex-col gap-3'
+                >
+                  <div className='flex flex-col items-center justify-center text-sm font-semibold text-muted-foreground'>
+                    <span>Автомобиль #{vehicle.vehicleId}</span>
+                    <span className='text-xs font-normal text-muted-foreground/70'>
+                      {vehicle.trips.length} рейс(а)
                     </span>
                   </div>
-                )
-              })}
+                  <div
+                    className='relative flex-1 overflow-hidden rounded-lg border border-border bg-muted/40'
+                    style={{
+                      height: chartHeight,
+                      backgroundImage: `repeating-linear-gradient(180deg, transparent, transparent calc(${gridSize} - 1px), rgba(15, 23, 42, 0.08) calc(${gridSize} - 1px), rgba(15, 23, 42, 0.08) ${gridSize})`,
+                    }}
+                  >
+                    {vehicle.trips.map((trip) => (
+                      <TripBlock
+                        key={trip.id}
+                        trip={trip}
+                        colorMap={colorMap}
+                        axisEnd={axis.axisEnd}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-          <div className='space-y-4'>
-            {vehicles.map((vehicle) => (
-              <div
-                key={vehicle.vehicleId}
-                className='grid grid-cols-[140px_1fr] gap-4'
-              >
-                <div className='flex flex-col items-end justify-center text-sm font-semibold text-muted-foreground'>
-                  <span>Автомобиль #{vehicle.vehicleId}</span>
-                  <span className='text-xs font-normal text-muted-foreground/70'>
-                    {vehicle.trips.length} рейс(а)
-                  </span>
-                </div>
-                <div
-                  className='relative h-16 overflow-hidden rounded-lg border border-border bg-muted/40'
-                  style={{
-                    backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent calc(${gridSize} - 1px), rgba(15, 23, 42, 0.08) calc(${gridSize} - 1px), rgba(15, 23, 42, 0.08) ${gridSize})`,
-                  }}
-                >
-                  {vehicle.trips.map((trip) => (
-                    <TripBar
-                      key={trip.id}
-                      trip={trip}
-                      colorMap={colorMap}
-                      axisEnd={axis.axisEnd}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>
@@ -144,26 +151,26 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
   )
 }
 
-interface TripBarProps {
+interface TripBlockProps {
   trip: TripPlan
   colorMap: Map<string, string>
   axisEnd: number
 }
 
-function TripBar({ trip, colorMap, axisEnd }: TripBarProps) {
+function TripBlock({ trip, colorMap, axisEnd }: TripBlockProps) {
   const color = colorMap.get(trip.requestId) ?? '#1f77b4'
   const offset = (trip.schedule.startTime / axisEnd) * 100
-  const width =
+  const height =
     ((trip.schedule.endTime - trip.schedule.startTime) / axisEnd) * 100
   const start = trip.schedule.startTime.toFixed(2)
   const end = trip.schedule.endTime.toFixed(2)
 
   return (
     <div
-      className='absolute top-2 flex h-12 flex-col justify-center rounded-md border border-white/40 px-3 py-1 text-left text-[11px] font-semibold text-white shadow-lg backdrop-blur-sm'
+      className='absolute left-2 right-2 flex flex-col justify-center rounded-md border border-white/40 px-3 py-2 text-left text-[11px] font-semibold text-white shadow-lg backdrop-blur-sm'
       style={{
-        left: `${offset}%`,
-        width: `${Math.max(width, 7)}%`,
+        top: `${offset}%`,
+        height: `${Math.max(height, 6)}%`,
         backgroundColor: color,
       }}
       title={`Рейс ${trip.tripNumber}: ${trip.requestLabel} (${start}–${end} ч)`}
