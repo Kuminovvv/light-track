@@ -402,12 +402,14 @@ export function TransportationPlanner() {
           <SummaryCards plan={plan} />
           <TripsTable plan={plan} />
           <VehicleTable plan={plan} />
-          <GanttChart
-            vehicles={plan.vehicles}
-            colorMap={colorMap}
-            horizon={parameters.workdayLength}
-          />
-          <RouteMap plan={plan} colorMap={colorMap} />
+          <div className='grid gap-8 lg:grid-cols-2'>
+            <GanttChart
+              vehicles={plan.vehicles}
+              colorMap={colorMap}
+              horizon={parameters.workdayLength}
+            />
+            <RouteMap plan={plan} colorMap={colorMap} />
+          </div>
         </section>
       )}
     </div>
