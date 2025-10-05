@@ -50,7 +50,6 @@ interface PhaseDefinition {
 const HEADER_HEIGHT = 56
 const ROW_HEIGHT = 92
 const ROW_GAP = 12
-const TIMELINE_PADDING = 24
 
 const phaseDefinitions: PhaseDefinition[] = [
   {
@@ -290,10 +289,11 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
     )
   }
 
-  const timelineHeight =
-    HEADER_HEIGHT +
+  const timelineContentHeight = Math.max(
     vehicleTracks.length * ROW_HEIGHT +
-    Math.max(vehicleTracks.length - 1, 0) * ROW_GAP
+      Math.max(vehicleTracks.length - 1, 0) * ROW_GAP,
+    ROW_HEIGHT,
+  )
 
   return (
     <div className='space-y-4'>
@@ -324,7 +324,7 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
                 className='flex h-[56px] items-end pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
                 style={{ height: HEADER_HEIGHT }}
               >
-                Время, ч
+                Автопарк
               </div>
               <div className='flex flex-col' style={{ gap: `${ROW_GAP}px` }}>
                 {vehicleTracks.map(({ vehicle, timeline }) => (
@@ -338,50 +338,27 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
               </div>
             </div>
             <div>
-              <div
-                className='relative rounded-lg border border-border/70 bg-muted/30'
-                style={{ height: timelineHeight }}
-              >
+              <div className='rounded-xl border border-border/70 bg-background/80 shadow-sm'>
                 <TimelineAxis axis={axis} />
                 <div
-                  className='absolute inset-x-0 top-[56px] bottom-0'
-                  style={{
-                    paddingLeft: TIMELINE_PADDING,
-                    paddingRight: TIMELINE_PADDING,
-                  }}
+                  className='relative px-6 py-4'
+                  style={{ minHeight: timelineContentHeight }}
                 >
-                  <div className='absolute inset-0'>
-                    {axis.ticks.map((tick) => {
-                      if (axis.axisEnd === 0) {
-                        return null
-                      }
-                      const position = (tick / axis.axisEnd) * 100
-                      return (
-                        <div
-                          key={`grid-${tick}`}
-                          className='absolute top-0 bottom-0 w-px bg-border/60'
-                          style={{ left: `${position}%` }}
-                        />
-                      )
-                    })}
-                  </div>
+                  <TimelineGrid axis={axis} height={timelineContentHeight} />
                   <div
-                    className='absolute inset-x-0 top-0 bottom-0'
-                    style={{
-                      backgroundImage: `repeating-linear-gradient(180deg, transparent, transparent calc(${ROW_HEIGHT}px + ${ROW_GAP}px - 1px), rgba(15, 23, 42, 0.06) calc(${ROW_HEIGHT}px + ${ROW_GAP}px - 1px), rgba(15, 23, 42, 0.06) calc(${ROW_HEIGHT}px + ${ROW_GAP}px))`,
-                    }}
-                    aria-hidden
-                  />
-                  {vehicleTracks.map(({ vehicle, timeline }, index) => (
-                    <VehicleTimelineRow
-                      key={vehicle.vehicleId}
-                      axisEnd={axis.axisEnd}
-                      colorMap={colorMap}
-                      segments={timeline.segments}
-                      top={index * (ROW_HEIGHT + ROW_GAP)}
-                      height={ROW_HEIGHT}
-                    />
-                  ))}
+                    className='flex flex-col'
+                    style={{ gap: `${ROW_GAP}px` }}
+                  >
+                    {vehicleTracks.map(({ vehicle, timeline }) => (
+                      <VehicleTimelineRow
+                        key={vehicle.vehicleId}
+                        axisEnd={axis.axisEnd}
+                        colorMap={colorMap}
+                        segments={timeline.segments}
+                        height={ROW_HEIGHT}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -461,7 +438,6 @@ interface VehicleTimelineRowProps {
   segments: TimelineSegment[]
   axisEnd: number
   colorMap: Map<string, RequestLegendEntry>
-  top: number
   height: number
 }
 
@@ -469,15 +445,13 @@ function VehicleTimelineRow({
   segments,
   axisEnd,
   colorMap,
-  top,
   height,
 }: VehicleTimelineRowProps) {
   return (
-    <div className='absolute left-0 right-0' style={{ top, height }}>
-      <div
-        className='absolute inset-y-3 left-0 right-0 rounded-lg bg-white/85 shadow-sm ring-1 ring-border/40'
-        aria-hidden
-      />
+    <div
+      className='relative overflow-hidden rounded-lg border border-border/70 bg-white shadow-sm'
+      style={{ height }}
+    >
       {segments.map((segment) =>
         segment.type === 'trip' ? (
           <TripBlock
@@ -485,7 +459,6 @@ function VehicleTimelineRow({
             trip={segment.trip}
             colorMap={colorMap}
             axisEnd={axisEnd}
-            height={height - 24}
           />
         ) : (
           <IdleBlock
@@ -493,7 +466,6 @@ function VehicleTimelineRow({
             start={segment.start}
             end={segment.end}
             axisEnd={axisEnd}
-            height={height - 24}
           />
         ),
       )}
@@ -505,10 +477,9 @@ interface TripBlockProps {
   trip: TripPlan
   colorMap: Map<string, RequestLegendEntry>
   axisEnd: number
-  height: number
 }
 
-function TripBlock({ trip, colorMap, axisEnd, height }: TripBlockProps) {
+function TripBlock({ trip, colorMap, axisEnd }: TripBlockProps) {
   const legendEntry = colorMap.get(trip.requestId)
   const baseColor = legendEntry?.color ?? '#2563eb'
   const safeAxis = axisEnd || 1
@@ -539,75 +510,39 @@ function TripBlock({ trip, colorMap, axisEnd, height }: TripBlockProps) {
 
   return (
     <div
-      className='absolute z-10 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md transition-shadow hover:shadow-lg'
+      className='absolute inset-y-2 z-10 flex flex-col gap-1.5 rounded-md px-3 py-2 text-xs text-white shadow-md ring-1 ring-black/5'
       style={{
         left: `${offset}%`,
         width: `${width}%`,
-        minWidth: '120px',
-        top: 12,
-        height,
+        backgroundImage: horizontalGradient,
+        backgroundColor: horizontalGradient
+          ? undefined
+          : darken(baseColor, 0.05),
       }}
       title={`Рейс ${trip.tripNumber}: ${startTime}–${endTime} ч`}
     >
-      <div className='flex items-start justify-between text-xs text-slate-900/80'>
-        <div className='flex flex-col gap-0.5'>
-          <span className='text-sm font-semibold leading-tight text-slate-900'>
-            Рейс #{trip.tripNumber}
-          </span>
-          <span className='text-[11px] font-medium text-slate-900/70'>
-            {trip.requestLabel}
-          </span>
-        </div>
-        <span className='tabular-nums text-[11px] font-medium text-slate-900/70'>
+      <div className='flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-white/85'>
+        <span>Рейс #{trip.tripNumber}</span>
+        <span className='tabular-nums'>
           {startTime} – {endTime} ч
         </span>
       </div>
-      <div className='text-[11px] text-slate-900/60'>
-        Маршрут: АТП → {trip.shipperCode} → {trip.receiverCode} → АТП
+      <div className='text-[11px] font-medium leading-tight text-white/90'>
+        {trip.requestLabel}
       </div>
-      <div className='h-1.5 w-full overflow-hidden rounded-full bg-white/70 shadow-inner'>
-        <div
-          className='h-full w-full'
-          style={{
-            backgroundImage: horizontalGradient,
-            backgroundColor: horizontalGradient
-              ? undefined
-              : lighten(baseColor, 0.45),
-          }}
-        />
+      <div className='text-[10px] text-white/85'>
+        АТП → {trip.shipperCode} → {trip.receiverCode} → АТП
       </div>
-      <dl className='grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-900/70'>
-        <div className='flex flex-col gap-0.5'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
-            Тоннаж
-          </dt>
-          <dd className='font-semibold text-slate-900'>
-            {trip.load.toFixed(2)} т
-          </dd>
-        </div>
-        <div className='flex flex-col gap-0.5'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
-            Пробег
-          </dt>
-          <dd className='font-semibold text-slate-900'>
-            {formatDistance(trip.distances.total)} км
-          </dd>
-        </div>
-        <div className='flex flex-col gap-0.5'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
-            В пути
-          </dt>
-          <dd className='font-semibold text-slate-900'>{travelTime} ч</dd>
-        </div>
-        <div className='flex flex-col gap-0.5'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
-            Работы
-          </dt>
-          <dd className='font-semibold text-slate-900'>{handlingTime} ч</dd>
-        </div>
-      </dl>
+      <div className='flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium text-white/85'>
+        <span className='tabular-nums'>Т: {trip.load.toFixed(2)} т</span>
+        <span className='tabular-nums'>
+          П: {formatDistance(trip.distances.total)} км
+        </span>
+        <span className='tabular-nums'>Р: {handlingTime} ч</span>
+        <span className='tabular-nums'>В пути: {travelTime} ч</span>
+      </div>
       {warnings.length > 0 && (
-        <div className='rounded-md border border-amber-400/50 bg-amber-50/80 px-2 py-1 text-[10px] font-medium text-amber-900 shadow-inner'>
+        <div className='rounded-sm border border-amber-300/60 bg-amber-400/30 px-2 py-1 text-[10px] font-semibold text-white shadow-inner'>
           {warnings.map((warning, index) => (
             <div key={`${trip.id}-warning-${index}`} className='leading-tight'>
               {warning}
@@ -623,10 +558,9 @@ interface IdleBlockProps {
   start: number
   end: number
   axisEnd: number
-  height: number
 }
 
-function IdleBlock({ start, end, axisEnd, height }: IdleBlockProps) {
+function IdleBlock({ start, end, axisEnd }: IdleBlockProps) {
   const safeAxis = axisEnd || 1
   const offset = (start / safeAxis) * 100
   const width = ((end - start) / safeAxis) * 100
@@ -634,20 +568,53 @@ function IdleBlock({ start, end, axisEnd, height }: IdleBlockProps) {
 
   return (
     <div
-      className='absolute z-0 flex items-center justify-between rounded-md border border-dashed border-slate-300 bg-slate-100/80 px-3 text-[10px] font-medium text-slate-500'
+      className='absolute inset-y-3 z-0 flex items-center justify-center gap-2 rounded-md border border-dashed border-slate-300/80 bg-slate-100/80 px-2 text-[10px] font-medium text-slate-500'
       style={{
         left: `${offset}%`,
         width: `${width}%`,
-        minWidth: '80px',
-        top: 16,
-        height: height - 8,
       }}
       title={`Простой: ${start.toFixed(2)} – ${end.toFixed(2)} ч (${duration} ч)`}
     >
-      <span className='uppercase tracking-wide'>Простой</span>
-      <span className='tabular-nums text-slate-500/80'>
-        {start.toFixed(2)} – {end.toFixed(2)} ч
+      <span className='whitespace-nowrap uppercase tracking-wide'>Простой</span>
+      <span className='whitespace-nowrap overflow-hidden text-ellipsis text-slate-500/80'>
+        {duration} ч
       </span>
+    </div>
+  )
+}
+
+interface TimelineGridProps {
+  axis: TimeAxisConfig
+  height: number
+}
+
+function TimelineGrid({ axis, height }: TimelineGridProps) {
+  if (height <= 0) {
+    return null
+  }
+
+  const safeAxis = axis.axisEnd || 1
+
+  return (
+    <div
+      className='pointer-events-none absolute inset-x-6 top-4'
+      style={{ height: Math.max(height, 1) }}
+      aria-hidden
+    >
+      {axis.ticks.map((tick) => {
+        if (axis.axisEnd === 0) {
+          return null
+        }
+
+        const position = (tick / safeAxis) * 100
+        return (
+          <div
+            key={`grid-${tick}`}
+            className='absolute top-0 bottom-0 w-px bg-border/60'
+            style={{ left: `${position}%` }}
+          />
+        )
+      })}
     </div>
   )
 }
@@ -661,49 +628,54 @@ function TimelineAxis({ axis }: TimelineAxisProps) {
 
   return (
     <div
-      className='absolute inset-x-0 top-0 flex h-[56px] items-end border-b border-border/70 px-6 pb-2 text-[11px] text-muted-foreground'
-      style={{ height: HEADER_HEIGHT }}
+      className='relative h-[56px] border-b border-border/70 px-6 text-[11px] text-muted-foreground'
+      style={{ minHeight: HEADER_HEIGHT }}
     >
-      <div className='relative flex-1'>
-        {axis.ticks.map((tick, index) => {
-          const label = tick.toFixed(Number.isInteger(tick) ? 0 : 1)
+      <span className='absolute left-6 top-2 font-semibold uppercase tracking-wide text-muted-foreground'>
+        Время, ч
+      </span>
+      <div className='absolute inset-x-6 bottom-0 flex h-[32px] items-end'>
+        <div className='relative flex-1'>
+          {axis.ticks.map((tick, index) => {
+            const label = tick.toFixed(Number.isInteger(tick) ? 0 : 1)
 
-          if (index === 0) {
+            if (index === 0) {
+              return (
+                <div
+                  key={tick}
+                  className='absolute bottom-0 left-0 flex flex-col items-start gap-1'
+                >
+                  <div className='h-3 w-px bg-border/70' />
+                  <span className='tabular-nums font-medium'>{label}</span>
+                </div>
+              )
+            }
+
+            if (index === axis.ticks.length - 1) {
+              return (
+                <div
+                  key={tick}
+                  className='absolute bottom-0 right-0 flex flex-col items-end gap-1'
+                >
+                  <div className='h-3 w-px bg-border/70' />
+                  <span className='tabular-nums font-medium'>{label}</span>
+                </div>
+              )
+            }
+
+            const position = (tick / safeAxis) * 100
             return (
               <div
                 key={tick}
-                className='absolute bottom-0 left-0 flex flex-col items-start gap-1'
+                className='absolute bottom-0 flex translate-x-[-50%] flex-col items-center gap-1'
+                style={{ left: `${position}%` }}
               >
                 <div className='h-3 w-px bg-border/70' />
                 <span className='tabular-nums font-medium'>{label}</span>
               </div>
             )
-          }
-
-          if (index === axis.ticks.length - 1) {
-            return (
-              <div
-                key={tick}
-                className='absolute bottom-0 right-0 flex flex-col items-end gap-1'
-              >
-                <div className='h-3 w-px bg-border/70' />
-                <span className='tabular-nums font-medium'>{label}</span>
-              </div>
-            )
-          }
-
-          const position = (tick / safeAxis) * 100
-          return (
-            <div
-              key={tick}
-              className='absolute bottom-0 flex translate-x-[-50%] flex-col items-center gap-1'
-              style={{ left: `${position}%` }}
-            >
-              <div className='h-3 w-px bg-border/70' />
-              <span className='tabular-nums font-medium'>{label}</span>
-            </div>
-          )
-        })}
+          })}
+        </div>
       </div>
     </div>
   )
