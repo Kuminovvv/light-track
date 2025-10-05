@@ -8,6 +8,7 @@ import {
   formatHours,
 } from '@entities'
 import { Button } from '@shared/ui/button'
+import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { GanttChart } from './gantt-chart'
 import { RouteMap } from './route-map'
@@ -50,6 +51,9 @@ export function TransportationPlanner() {
     useState<PlannerParameters>(defaultParameters)
   const [plan, setPlan] = useState<PlanResult | null>(null)
   const [errors, setErrors] = useState<string[]>([])
+  const [visualizationTab, setVisualizationTab] = useState<'gantt' | 'map'>(
+    'gantt',
+  )
 
   const colorMap = useMemo(() => {
     const map = new Map<string, RequestLegendEntry>()
@@ -142,6 +146,9 @@ export function TransportationPlanner() {
     const calculation = buildPlan(sanitized, parameters)
     setPlan(calculation)
     setErrors(calculation.errors)
+    if (calculation.trips.length === 0) {
+      setVisualizationTab('gantt')
+    }
   }
 
   const handleExportCsv = () => {
@@ -406,14 +413,41 @@ export function TransportationPlanner() {
           <SummaryCards plan={plan} />
           <TripsTable plan={plan} />
           <VehicleTable plan={plan} />
-          <div className='space-y-8'>
-            <GanttChart
-              vehicles={plan.vehicles}
-              colorMap={colorMap}
-              horizon={parameters.workdayLength}
-            />
-            <RouteMap plan={plan} colorMap={colorMap} />
-          </div>
+          <section className='rounded-xl border bg-card p-6 shadow-sm'>
+            <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+              <div>
+                <h2 className='text-xl font-semibold'>Визуализации</h2>
+                <p className='text-sm text-muted-foreground'>
+                  Переключайтесь между схемой маршрутов и диаграммой Ганта.
+                </p>
+              </div>
+              <div className='inline-flex items-center gap-2 rounded-lg border border-border bg-muted/30 p-1'>
+                <TabButton
+                  isActive={visualizationTab === 'gantt'}
+                  onClick={() => setVisualizationTab('gantt')}
+                >
+                  Диаграмма Ганта
+                </TabButton>
+                <TabButton
+                  isActive={visualizationTab === 'map'}
+                  onClick={() => setVisualizationTab('map')}
+                >
+                  Схема маршрутов
+                </TabButton>
+              </div>
+            </div>
+            <div className='mt-6'>
+              {visualizationTab === 'gantt' ? (
+                <GanttChart
+                  vehicles={plan.vehicles}
+                  colorMap={colorMap}
+                  horizon={parameters.workdayLength}
+                />
+              ) : (
+                <RouteMap plan={plan} colorMap={colorMap} />
+              )}
+            </div>
+          </section>
         </section>
       )}
     </div>
@@ -622,5 +656,27 @@ function VehicleTable({ plan }: VehicleTableProps) {
         </table>
       </div>
     </section>
+  )
+}
+
+interface TabButtonProps {
+  isActive: boolean
+  onClick: () => void
+  children: ReactNode
+}
+
+function TabButton({ isActive, onClick, children }: TabButtonProps) {
+  return (
+    <button
+      type='button'
+      onClick={onClick}
+      className={`rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+        isActive
+          ? 'bg-background text-foreground shadow'
+          : 'text-muted-foreground hover:bg-background/60'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
