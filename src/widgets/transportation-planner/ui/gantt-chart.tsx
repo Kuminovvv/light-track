@@ -6,6 +6,7 @@ import {
   type TripPlan,
   type VehicleSchedule,
 } from '@entities'
+
 import type { RequestLegendEntry } from './types'
 
 interface GanttChartProps {
@@ -45,6 +46,11 @@ interface PhaseDefinition {
   bounds: (schedule: TripPlan['schedule']) => [number, number]
   color: (base: string) => string
 }
+
+const HEADER_HEIGHT = 56
+const ROW_HEIGHT = 92
+const ROW_GAP = 12
+const TIMELINE_PADDING = 24
 
 const phaseDefinitions: PhaseDefinition[] = [
   {
@@ -235,9 +241,6 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
   )
 
   const axis = buildTimeAxis(maxTime)
-  const gridSize =
-    axis.axisEnd > 0 ? `${(axis.majorStep / axis.axisEnd) * 100}%` : '100%'
-  const chartHeight = Math.max(axis.axisEnd * 48, 320)
 
   const vehicleTracks = vehicles.map((vehicle) => ({
     vehicle,
@@ -287,6 +290,11 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
     )
   }
 
+  const timelineHeight =
+    HEADER_HEIGHT +
+    vehicleTracks.length * ROW_HEIGHT +
+    Math.max(vehicleTracks.length - 1, 0) * ROW_GAP
+
   return (
     <div className='space-y-4'>
       <div className='flex flex-wrap items-center justify-between gap-2'>
@@ -309,82 +317,73 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
         />
       </div>
       <div className='overflow-x-auto rounded-xl border bg-card p-4 shadow-sm'>
-        <div className='min-w-[840px] space-y-5'>
-          <div className='flex items-end gap-6 text-xs text-muted-foreground'>
-            <div className='flex w-24 flex-col items-end gap-2 text-right font-medium uppercase tracking-wide'>
-              <span className='text-sm font-semibold text-muted-foreground'>
-                Время, ч
-              </span>
+        <div className='min-w-[960px] space-y-6'>
+          <div className='grid grid-cols-[220px_minmax(0,1fr)] gap-4'>
+            <div>
               <div
-                className='relative w-full flex-1'
-                style={{ height: chartHeight }}
+                className='flex h-[56px] items-end pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+                style={{ height: HEADER_HEIGHT }}
               >
-                <div className='absolute left-[calc(50%-1px)] top-0 h-full w-px bg-border' />
-                {axis.ticks.map((tick) => {
-                  const position = (tick / axis.axisEnd) * 100
-                  return (
-                    <div
-                      key={tick}
-                      className='absolute -translate-y-1/2 text-[10px] font-medium text-muted-foreground'
-                      style={{ top: `${position}%`, right: '-0.75rem' }}
-                    >
-                      <div className='absolute left-[0.75rem] top-1/2 h-px w-3 -translate-y-1/2 bg-border' />
-                      <span className='relative -translate-y-1/2'>
-                        {tick.toFixed(Number.isInteger(tick) ? 0 : 1)}
-                      </span>
-                    </div>
-                  )
-                })}
+                Время, ч
+              </div>
+              <div className='flex flex-col' style={{ gap: `${ROW_GAP}px` }}>
+                {vehicleTracks.map(({ vehicle, timeline }) => (
+                  <VehicleInfoPanel
+                    key={vehicle.vehicleId}
+                    vehicle={vehicle}
+                    timeline={timeline}
+                    height={ROW_HEIGHT}
+                  />
+                ))}
               </div>
             </div>
-            <div className='flex flex-1 gap-6'>
-              {vehicleTracks.map(({ vehicle, timeline }) => (
+            <div>
+              <div
+                className='relative rounded-lg border border-border/70 bg-muted/30'
+                style={{ height: timelineHeight }}
+              >
+                <TimelineAxis axis={axis} />
                 <div
-                  key={vehicle.vehicleId}
-                  className='flex w-[220px] flex-col gap-3'
+                  className='absolute inset-x-0 top-[56px] bottom-0'
+                  style={{
+                    paddingLeft: TIMELINE_PADDING,
+                    paddingRight: TIMELINE_PADDING,
+                  }}
                 >
-                  <div className='flex flex-col items-center justify-center gap-1 text-center'>
-                    <span className='text-sm font-semibold text-muted-foreground'>
-                      Автомобиль #{vehicle.vehicleId}
-                    </span>
-                    <div className='flex flex-col text-xs text-muted-foreground/80'>
-                      <span>
-                        {vehicle.trips.length} рейс(а), пробег{' '}
-                        {formatDistance(vehicle.totalDistance)} км
-                      </span>
-                      <span>
-                        Занятость {formatPercent(timeline.utilization)}%,
-                        простой {formatHours(timeline.idleTime)} ч
-                      </span>
-                    </div>
+                  <div className='absolute inset-0'>
+                    {axis.ticks.map((tick) => {
+                      if (axis.axisEnd === 0) {
+                        return null
+                      }
+                      const position = (tick / axis.axisEnd) * 100
+                      return (
+                        <div
+                          key={`grid-${tick}`}
+                          className='absolute top-0 bottom-0 w-px bg-border/60'
+                          style={{ left: `${position}%` }}
+                        />
+                      )
+                    })}
                   </div>
                   <div
-                    className='relative flex-1 overflow-hidden rounded-lg border border-border bg-muted/40'
+                    className='absolute inset-x-0 top-0 bottom-0'
                     style={{
-                      height: chartHeight,
-                      backgroundImage: `repeating-linear-gradient(180deg, transparent, transparent calc(${gridSize} - 1px), rgba(15, 23, 42, 0.08) calc(${gridSize} - 1px), rgba(15, 23, 42, 0.08) ${gridSize})`,
+                      backgroundImage: `repeating-linear-gradient(180deg, transparent, transparent calc(${ROW_HEIGHT}px + ${ROW_GAP}px - 1px), rgba(15, 23, 42, 0.06) calc(${ROW_HEIGHT}px + ${ROW_GAP}px - 1px), rgba(15, 23, 42, 0.06) calc(${ROW_HEIGHT}px + ${ROW_GAP}px))`,
                     }}
-                  >
-                    {timeline.segments.map((segment) =>
-                      segment.type === 'trip' ? (
-                        <TripBlock
-                          key={segment.trip.id}
-                          trip={segment.trip}
-                          colorMap={colorMap}
-                          axisEnd={axis.axisEnd}
-                        />
-                      ) : (
-                        <IdleBlock
-                          key={`idle-${vehicle.vehicleId}-${segment.start.toFixed(2)}`}
-                          start={segment.start}
-                          end={segment.end}
-                          axisEnd={axis.axisEnd}
-                        />
-                      ),
-                    )}
-                  </div>
+                    aria-hidden
+                  />
+                  {vehicleTracks.map(({ vehicle, timeline }, index) => (
+                    <VehicleTimelineRow
+                      key={vehicle.vehicleId}
+                      axisEnd={axis.axisEnd}
+                      colorMap={colorMap}
+                      segments={timeline.segments}
+                      top={index * (ROW_HEIGHT + ROW_GAP)}
+                      height={ROW_HEIGHT}
+                    />
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
@@ -421,82 +420,152 @@ export function GanttChart({ vehicles, colorMap, horizon }: GanttChartProps) {
   )
 }
 
+interface VehicleInfoPanelProps {
+  vehicle: VehicleSchedule
+  timeline: VehicleTimeline
+  height: number
+}
+
+function VehicleInfoPanel({
+  vehicle,
+  timeline,
+  height,
+}: VehicleInfoPanelProps) {
+  const formatPercent = (value: number) =>
+    (value * 100).toLocaleString('ru-RU', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })
+
+  return (
+    <div
+      className='flex flex-col justify-center rounded-lg border border-border/60 bg-muted/40 px-3 py-2 shadow-inner'
+      style={{ height }}
+    >
+      <div className='text-sm font-semibold text-muted-foreground'>
+        Автомобиль #{vehicle.vehicleId}
+      </div>
+      <div className='mt-1 text-xs text-muted-foreground/80'>
+        {vehicle.trips.length} рейс(а), пробег{' '}
+        {formatDistance(vehicle.totalDistance)} км
+      </div>
+      <div className='text-xs text-muted-foreground/80'>
+        Занятость {formatPercent(timeline.utilization)}%, простой{' '}
+        {formatHours(timeline.idleTime)} ч
+      </div>
+    </div>
+  )
+}
+
+interface VehicleTimelineRowProps {
+  segments: TimelineSegment[]
+  axisEnd: number
+  colorMap: Map<string, RequestLegendEntry>
+  top: number
+  height: number
+}
+
+function VehicleTimelineRow({
+  segments,
+  axisEnd,
+  colorMap,
+  top,
+  height,
+}: VehicleTimelineRowProps) {
+  return (
+    <div className='absolute left-0 right-0' style={{ top, height }}>
+      <div
+        className='absolute inset-y-3 left-0 right-0 rounded-lg bg-white/85 shadow-sm ring-1 ring-border/40'
+        aria-hidden
+      />
+      {segments.map((segment) =>
+        segment.type === 'trip' ? (
+          <TripBlock
+            key={segment.trip.id}
+            trip={segment.trip}
+            colorMap={colorMap}
+            axisEnd={axisEnd}
+            height={height - 24}
+          />
+        ) : (
+          <IdleBlock
+            key={`idle-${segment.start.toFixed(2)}-${segment.end.toFixed(2)}`}
+            start={segment.start}
+            end={segment.end}
+            axisEnd={axisEnd}
+            height={height - 24}
+          />
+        ),
+      )}
+    </div>
+  )
+}
+
 interface TripBlockProps {
   trip: TripPlan
   colorMap: Map<string, RequestLegendEntry>
   axisEnd: number
+  height: number
 }
 
-function TripBlock({ trip, colorMap, axisEnd }: TripBlockProps) {
+function TripBlock({ trip, colorMap, axisEnd, height }: TripBlockProps) {
   const legendEntry = colorMap.get(trip.requestId)
   const baseColor = legendEntry?.color ?? '#2563eb'
   const safeAxis = axisEnd || 1
   const offset = (trip.schedule.startTime / safeAxis) * 100
   const duration = Math.max(trip.schedule.endTime - trip.schedule.startTime, 0)
-  const height = (duration / safeAxis) * 100
+  const width = (duration / safeAxis) * 100
 
   const phases = buildTripPhases(trip, baseColor)
   const totalDuration = Math.max(duration, 1e-4)
-  const gradientStops = phases.map((phase) => {
-    const startPercent = (phase.startOffset / totalDuration) * 100
-    const endPercent =
-      ((phase.startOffset + phase.duration) / totalDuration) * 100
-    return `${phase.color} ${startPercent}% ${endPercent}%`
-  })
-
-  const verticalGradient =
-    gradientStops.length > 0
-      ? `linear-gradient(180deg, ${gradientStops.join(', ')})`
-      : undefined
+  const gradientStops = phases
+    .map((phase) => {
+      const startPercent = (phase.startOffset / totalDuration) * 100
+      const endPercent =
+        ((phase.startOffset + phase.duration) / totalDuration) * 100
+      return `${phase.color} ${startPercent.toFixed(2)}% ${endPercent.toFixed(2)}%`
+    })
+    .join(', ')
   const horizontalGradient =
     gradientStops.length > 0
-      ? `linear-gradient(90deg, ${gradientStops.join(', ')})`
+      ? `linear-gradient(90deg, ${gradientStops})`
       : undefined
 
   const travelTime = formatHours(trip.timing.travel)
   const handlingTime = formatHours(trip.timing.loading + trip.timing.unloading)
-  const start = trip.schedule.startTime.toFixed(2)
-  const end = trip.schedule.endTime.toFixed(2)
-  const warnings = trip.warnings.filter(Boolean)
-  const phaseDetails = phases
-    .map((phase) => `${phase.label}: ${formatHours(phase.duration)} ч`)
-    .join('; ')
-  const tooltip =
-    `Рейс №${trip.tripNumber}: ${trip.requestLabel} (${start}–${end} ч)` +
-    (phaseDetails ? `. ${phaseDetails}` : '')
+  const startTime = formatHours(trip.schedule.startTime)
+  const endTime = formatHours(trip.schedule.endTime)
+  const warnings = trip.warnings ?? []
 
   return (
     <div
-      className='group absolute left-2 right-2 z-[1] flex flex-col gap-1 rounded-xl border px-3 py-2 text-left text-[10px] text-slate-900 shadow-[0_8px_20px_-12px_rgba(15,23,42,0.6)] backdrop-blur-sm'
+      className='absolute z-10 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md transition-shadow hover:shadow-lg'
       style={{
-        top: `${offset}%`,
-        height: `${Math.max(height, 6)}%`,
-        borderColor: lighten(baseColor, 0.45),
-        backgroundColor: lighten(baseColor, 0.6),
-        backgroundImage: verticalGradient,
+        left: `${offset}%`,
+        width: `${width}%`,
+        minWidth: '120px',
+        top: 12,
+        height,
       }}
-      title={tooltip}
+      title={`Рейс ${trip.tripNumber}: ${startTime}–${endTime} ч`}
     >
-      <div className='flex items-center justify-between gap-2 text-[9px] font-semibold uppercase tracking-wide text-slate-900/70'>
-        <div className='flex items-center gap-2'>
-          <span>Рейс №{trip.tripNumber}</span>
-          {warnings.length > 0 && (
-            <span className='flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-[8px] font-bold text-amber-900 shadow-inner'>
-              !
-            </span>
-          )}
+      <div className='flex items-start justify-between text-xs text-slate-900/80'>
+        <div className='flex flex-col gap-0.5'>
+          <span className='text-sm font-semibold leading-tight text-slate-900'>
+            Рейс #{trip.tripNumber}
+          </span>
+          <span className='text-[11px] font-medium text-slate-900/70'>
+            {trip.requestLabel}
+          </span>
         </div>
-        <span className='tabular-nums text-slate-900/70'>
-          {start} – {end} ч
+        <span className='tabular-nums text-[11px] font-medium text-slate-900/70'>
+          {startTime} – {endTime} ч
         </span>
       </div>
-      <div className='truncate text-sm font-semibold leading-tight text-slate-900'>
-        {trip.requestLabel}
-      </div>
-      <div className='text-[9px] text-slate-900/70'>
+      <div className='text-[11px] text-slate-900/60'>
         Маршрут: АТП → {trip.shipperCode} → {trip.receiverCode} → АТП
       </div>
-      <div className='mt-1 h-1.5 w-full overflow-hidden rounded-full bg-white/70 shadow-inner'>
+      <div className='h-1.5 w-full overflow-hidden rounded-full bg-white/70 shadow-inner'>
         <div
           className='h-full w-full'
           style={{
@@ -507,38 +576,38 @@ function TripBlock({ trip, colorMap, axisEnd }: TripBlockProps) {
           }}
         />
       </div>
-      <dl className='grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-slate-900/80'>
-        <div className='flex flex-col leading-tight'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/60'>
+      <dl className='grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-900/70'>
+        <div className='flex flex-col gap-0.5'>
+          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
             Тоннаж
           </dt>
           <dd className='font-semibold text-slate-900'>
             {trip.load.toFixed(2)} т
           </dd>
         </div>
-        <div className='flex flex-col leading-tight'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/60'>
+        <div className='flex flex-col gap-0.5'>
+          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
             Пробег
           </dt>
           <dd className='font-semibold text-slate-900'>
             {formatDistance(trip.distances.total)} км
           </dd>
         </div>
-        <div className='flex flex-col leading-tight'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/60'>
+        <div className='flex flex-col gap-0.5'>
+          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
             В пути
           </dt>
           <dd className='font-semibold text-slate-900'>{travelTime} ч</dd>
         </div>
-        <div className='flex flex-col leading-tight'>
-          <dt className='font-medium uppercase tracking-wide text-slate-900/60'>
+        <div className='flex flex-col gap-0.5'>
+          <dt className='font-medium uppercase tracking-wide text-slate-900/50'>
             Работы
           </dt>
           <dd className='font-semibold text-slate-900'>{handlingTime} ч</dd>
         </div>
       </dl>
       {warnings.length > 0 && (
-        <div className='rounded-md border border-amber-400/50 bg-amber-50/80 px-2 py-1 text-[8px] font-medium text-amber-900 shadow-inner'>
+        <div className='rounded-md border border-amber-400/50 bg-amber-50/80 px-2 py-1 text-[10px] font-medium text-amber-900 shadow-inner'>
           {warnings.map((warning, index) => (
             <div key={`${trip.id}-warning-${index}`} className='leading-tight'>
               {warning}
@@ -554,20 +623,24 @@ interface IdleBlockProps {
   start: number
   end: number
   axisEnd: number
+  height: number
 }
 
-function IdleBlock({ start, end, axisEnd }: IdleBlockProps) {
+function IdleBlock({ start, end, axisEnd, height }: IdleBlockProps) {
   const safeAxis = axisEnd || 1
   const offset = (start / safeAxis) * 100
-  const height = ((end - start) / safeAxis) * 100
+  const width = ((end - start) / safeAxis) * 100
   const duration = formatHours(end - start)
 
   return (
     <div
-      className='absolute left-3 right-3 z-0 flex items-center justify-between rounded-lg border border-dashed border-slate-300 bg-slate-100/70 px-3 py-1.5 text-[9px] font-medium text-slate-500 shadow-inner'
+      className='absolute z-0 flex items-center justify-between rounded-md border border-dashed border-slate-300 bg-slate-100/80 px-3 text-[10px] font-medium text-slate-500'
       style={{
-        top: `${offset}%`,
-        height: `${Math.max(height, 3)}%`,
+        left: `${offset}%`,
+        width: `${width}%`,
+        minWidth: '80px',
+        top: 16,
+        height: height - 8,
       }}
       title={`Простой: ${start.toFixed(2)} – ${end.toFixed(2)} ч (${duration} ч)`}
     >
@@ -575,6 +648,63 @@ function IdleBlock({ start, end, axisEnd }: IdleBlockProps) {
       <span className='tabular-nums text-slate-500/80'>
         {start.toFixed(2)} – {end.toFixed(2)} ч
       </span>
+    </div>
+  )
+}
+
+interface TimelineAxisProps {
+  axis: TimeAxisConfig
+}
+
+function TimelineAxis({ axis }: TimelineAxisProps) {
+  const safeAxis = axis.axisEnd || 1
+
+  return (
+    <div
+      className='absolute inset-x-0 top-0 flex h-[56px] items-end border-b border-border/70 px-6 pb-2 text-[11px] text-muted-foreground'
+      style={{ height: HEADER_HEIGHT }}
+    >
+      <div className='relative flex-1'>
+        {axis.ticks.map((tick, index) => {
+          const label = tick.toFixed(Number.isInteger(tick) ? 0 : 1)
+
+          if (index === 0) {
+            return (
+              <div
+                key={tick}
+                className='absolute bottom-0 left-0 flex flex-col items-start gap-1'
+              >
+                <div className='h-3 w-px bg-border/70' />
+                <span className='tabular-nums font-medium'>{label}</span>
+              </div>
+            )
+          }
+
+          if (index === axis.ticks.length - 1) {
+            return (
+              <div
+                key={tick}
+                className='absolute bottom-0 right-0 flex flex-col items-end gap-1'
+              >
+                <div className='h-3 w-px bg-border/70' />
+                <span className='tabular-nums font-medium'>{label}</span>
+              </div>
+            )
+          }
+
+          const position = (tick / safeAxis) * 100
+          return (
+            <div
+              key={tick}
+              className='absolute bottom-0 flex translate-x-[-50%] flex-col items-center gap-1'
+              style={{ left: `${position}%` }}
+            >
+              <div className='h-3 w-px bg-border/70' />
+              <span className='tabular-nums font-medium'>{label}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
