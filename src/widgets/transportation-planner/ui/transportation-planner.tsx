@@ -402,7 +402,7 @@ export function TransportationPlanner() {
           <SummaryCards plan={plan} />
           <TripsTable plan={plan} />
           <VehicleTable plan={plan} />
-          <div className='grid gap-8 lg:grid-cols-2'>
+          <div className='space-y-8'>
             <GanttChart
               vehicles={plan.vehicles}
               colorMap={colorMap}
