@@ -21,8 +21,10 @@
     "baseUrl": "src",
     "paths": {
       "@app/*": ["app/*"],
+      "@entities": ["entities/index.ts"],
       "@entities/*": ["entities/*"],
       "@features/*": ["features/*"],
+      "@shared": ["shared/index.ts"],
       "@shared/*": ["shared/*"],
       "@widgets/*": ["widgets/*"]
     }

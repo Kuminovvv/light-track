@@ -1,1 +1,1 @@
-export {robotoFlex, unbounded} from "./fonts"
+export { roboto, unbounded } from './fonts'
